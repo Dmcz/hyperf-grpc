@@ -76,6 +76,37 @@ class Parser
         return [$reply, $status, $response];
     }
 
+    public static function parseStreamMessage(string $buffer, $deserialize): array
+    {
+        $offset = 0;
+        $messages = [];
+        $total = strlen($buffer);
+
+        while ($total - $offset >= 5) {
+            // gzip flag
+            $flag = ord($buffer[$offset]);
+
+            // message length
+            $len  = unpack('N', substr($buffer, $offset + 1, 4))[1];
+
+            // TODO Consider whether throwing an exception is necessary.
+            if ($total - $offset < 5 + $len) {
+                break;
+            }
+
+            $payload = substr($buffer, $offset + 5, $len);
+            if ($flag === 1) {
+                $payload = gzdecode($payload);
+            }
+
+            $messages[] = Parser::deserializeUnpackedMessage($deserialize, $payload);
+
+            $offset += 5 + $len;
+        }
+
+        return $messages;
+    }
+
     /**
      * @param Response $response
      */
